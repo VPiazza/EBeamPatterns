@@ -69,6 +69,38 @@ l_lgBeam = 1
 l_LGBeam = 10
 l_drawing = 100           
 
+### Checking geometrical parameters:
+precheck= False
+intro = "You are starting to write your layout."
+wafer_type = "**\nAre writing on a 2\" wafer? [y/n]  "
+block_type = "**\nDo you want to write 1cmx1cm chip? [y/n]  "
+chip_type = "**\nDo you want to write " + str(lgField_num) + " lines of Large Fields? [y/n]  "
+LgField_type = "**\nDo you want to write " + str(smField_num) + " lines of Small Fields in each Large field? [y/n]  "
+
+positive_answer = ""
+lets_go = "**\nLet's Go!\n**"
+exit_sentence = "**\nThen something is wrong......"
+
+if precheck:
+    print(intro)
+    if input(wafer_type) == positive_answer:
+        if input(block_type) == positive_answer:
+            if input(chip_type) == positive_answer:
+                if input(LgField_type) == positive_answer:
+                    print(lets_go)
+                else:
+                    print(exit_sentence)
+                    quit()
+            else:
+                print(exit_sentence)
+                quit()
+        else:
+            print(exit_sentence)
+            quit()
+    else:
+        print(exit_sentence)
+        quit()
+
 
 # %% Wafer template for MBE growth
 class MBE100Wafer(Wafer_GridStyle):
@@ -100,11 +132,12 @@ class MBE100Wafer(Wafer_GridStyle):
         
         self.add_block_labels(l_lgBeam, unique_ids=True, load_ids=True)     # Chip ID
         self.add_prealignment_markers(layers=[l_lgBeam])                    # Pre-align. Marks
-        self.add_contacts(pad_size,finger_width, finger_length, l_LGBeam)
+        
         #self.add_tem_membranes([0.02, 0.035, 0.050], 1000, 1, l_smBeam)     # TEM Sections 
         #self.add_theory_cells()                                             # Growth Section
         #self.add_cleave_xsection_nws()                                      # Cross-section Section                           
-        self.add_chip_labels()                                              # Wafer and Pattern name on each chip
+        self.add_chip_labels()   
+        self.add_contacts(layers= l_LGBeam)                                  # Wafer and Pattern name on each chip
 
         bottom = np.array([0, -self.wafer_r * 0.9])
         self.add_waferLabel(waferLabel, l_drawing, pos=bottom)
@@ -259,13 +292,9 @@ class MBE100Wafer(Wafer_GridStyle):
             block.add(pamm_cell, origin=(center_x - 2000, center_y))
         
 ## First attempt to design the contact pads into the outer 1.5 mm frame
-    def add_contacts(self, pad_size, finger_width, finger_length, layers):
+    def add_contacts(self, layers):
         corner_pos = pad_size/2
-        n_ext = 12
-        n_int = n_ext-1
-        spacing = 7000/(n_ext+2)
-        n_inner = 3
-        spacing_inner = (1000-pad_size)/(n_inner-1)
+        n_cont = smField_num + 1
 
         contact_pads = Cell('Contact_Pads')
         pad =  Rectangle((-corner_pos,-corner_pos), (corner_pos,corner_pos), layer=layers)
@@ -275,31 +304,23 @@ class MBE100Wafer(Wafer_GridStyle):
         finger_cell = Cell('Finger Cell')
         finger_cell.add(finger)
 
-        curr_x = (10000 - ((n_ext-1)*spacing))/2
-        curr_y = 1500 - 2*spacing + corner_pos
-        pad_array_ext = CellArray(pad_cell, n_ext, 1, (spacing, pad_size*1.5), origin = (curr_x, curr_y))
-        finger_array_ext = CellArray(finger_cell, n_ext, 1, (spacing, pad_size*1.5), origin = (curr_x, curr_y + corner_pos + finger_length/2))
-        pad_array_int = CellArray(pad_cell, n_int, 1, (spacing, pad_size*1.5), origin=(curr_x+spacing/2, curr_y+ spacing))
-        finger_array_int = CellArray(finger_cell, n_int, 1, (spacing, pad_size*1.5), origin=(curr_x+spacing/2, curr_y + spacing + corner_pos + finger_length/2))
-        
+        pad_array = CellArray(pad_cell, n_cont, n_cont, (sm_spacing, sm_spacing), origin = (0, 0))
+        finger_array1 = CellArray(finger_cell, n_cont, n_cont, (sm_spacing, sm_spacing), origin=(corner_pos - finger_width, corner_pos + finger_length/2))
+        finger_array2 = CellArray(finger_cell, n_cont, n_cont, (sm_spacing, sm_spacing), origin=(-corner_pos + finger_width, -corner_pos - finger_length/2))
+        finger_array3 = CellArray(finger_cell, n_cont, n_cont, (sm_spacing, sm_spacing), rotation = 90, origin=((n_cont-1)*sm_spacing - corner_pos - finger_length/2, corner_pos - finger_width))
+        finger_array4 = CellArray(finger_cell, n_cont, n_cont, (sm_spacing, sm_spacing), rotation = 90, origin=((n_cont-1)*sm_spacing + corner_pos + finger_length/2, -corner_pos + finger_width))
        
-        curr_x = curr_y = 3000-((n_inner-1)*spacing_inner/2)
-        pad_array_inner = CellArray(pad_cell, n_inner, n_inner, (spacing_inner, spacing_inner), origin=(curr_x, curr_y))
-        # finger_array_inner = CellArray(finger_cell, 2, 2, (spacing, pad_size*1.5), origin=(2700, 2700)) 
+        contact_pads.add(pad_array)
+        contact_pads.add(finger_array1)
+        contact_pads.add(finger_array2)
+        contact_pads.add(finger_array3)
+        contact_pads.add(finger_array4)
 
-        contact_pads.add(pad_array_ext)
-        contact_pads.add(pad_array_int)
-        contact_pads.add(pad_array_inner)
-        contact_pads.add(finger_array_ext)
-        contact_pads.add(finger_array_int)
-        # contact_pads.add(finger_array_inner)
-
+        center = -0.5*((n_cont-1)*smField_size + (n_cont-1)*pad_size)
         for block in self.blocks:
-            block.add(contact_pads)
-            block.add(contact_pads, origin = (10000,0), rotation = 90)
-            block.add(contact_pads, origin = (10000,10000), rotation = 180)
-            block.add(contact_pads, origin = (0, 10000), rotation = 270)
-
+            for n in range (0, lgField_num):
+                for i in range (0, lgField_num):
+                    block.add(contact_pads, origin = (center + (n+1)*lgField_spacing, center+ (i+1)*lgField_spacing))
 
     def add_tem_membranes(self, widths, length, pitch, layer):
         tem_membranes = Cell('TEM_Membranes')
@@ -531,104 +552,144 @@ class Frame(Cell):
 
 # %%Create the pattern that we want to write
 
-lgField = Frame("LargeField", (2000., 2000.), [])  # Create the large write field
-lgField.make_align_markers(10., 200., (1350., 1350.), l_lgBeam, joy_markers=True, camps_markers=True)
+# Define parameters that we will use for the slits: 
+length = 20.        # Length of the slit. TBN that the lenght is varied by the position of the contact.
 
-# Define parameters that we will use for the slits
-widths = [0.020, 0.035, 0.050, 0.020, 0.035, 0.050]
-pitch = 3.0
-length = 15.
+# Standard values (used when these params are not varying)
+width_std = 0.05
+pitch_std = 0
+lenght_std = 10.
 
-smFrameSize = 400
-slitColumnSpacing = 3.
-smMarkerPosition = 200.
 
-# Create the smaller write field and corresponding markers
-smField1 = Frame("SmallField1", (smFrameSize, smFrameSize), [])
-smField1.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField1.make_slit_patterns("Single Slits", pitch, slitColumnSpacing, widths, length, 0, 100, 100, 30, l_smBeam)
+# Since the 3x3 arrays of small field, the array MUST contain 3 values.
+widths_sm = (0.02, 0.05, 0.10)
+widths_lg = [0.15, 0.20, 0.25]                  # 6 widths
+lenghts_sm = [0.25, 0.5, 1.] 
+lengths_lg = [2., 5., 10.]                      # 6 lenghts
+pitches = [0.5, 1., 2.]                         # 3 pitches
+num_slits_sm = [2, 5, 10] 
+num_slits_lg = [15, 20, 30]                     # 6 multiple slits
 
-smField2 = Frame("SmallField2", (smFrameSize, smFrameSize), [])
-smField2.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField2.make_slit_patterns("Multiple Slits", pitch, slitColumnSpacing, widths, length, 0, 100, 100, 30, l_smBeam)
-
-smField3 = Frame("SmallField3", (smFrameSize, smFrameSize), [])
-smField3.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField3.make_slit_patterns("Single Path", 2.0, slitColumnSpacing, widths, length, 0, 100, 100, 30, l_smBeam) #VP_mod: pitch is increased manually to 2.0
-
-smField4 = Frame("SmallField4", (smFrameSize, smFrameSize), [])
-smField4.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField4.make_slit_patterns("Multiple Paths", pitch, slitColumnSpacing, widths, length, 90, 100, 100, 30, l_smBeam)
-
-smField5 = Frame("SmallField5", (smFrameSize, smFrameSize), [])
-smField5.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField5.make_slit_patterns("Single Junction", pitch, slitColumnSpacing, widths, length, 90, 100, 100, 30, l_smBeam)
-
-smField6 = Frame("SmallField6", (smFrameSize, smFrameSize), [])
-smField6.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField6.make_slit_patterns("Multiple Junction", pitch, slitColumnSpacing, widths, length, 90, 100, 100, 30, l_smBeam)
-
-smField1t = Frame("SmallField1t", (smFrameSize, smFrameSize), [])
-smField1t.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField1t.make_slit_patterns("Single Slits", pitch, slitColumnSpacing, widths, length, 270, 100, 100, 30, l_smBeam)
-
-smField2t = Frame("SmallField2t", (smFrameSize, smFrameSize), [])
-smField2t.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField2t.make_slit_patterns("Multiple Slits", pitch, slitColumnSpacing, widths, length, 270, 100, 100, 30, l_smBeam)
-
-smField3t = Frame("SmallField3t", (smFrameSize, smFrameSize), [])
-smField3t.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField3t.make_slit_patterns("Single Path", 2.0, slitColumnSpacing, widths, length, 270, 100, 100, 30, l_smBeam) #VP_mod: pitch is increased manually to 2.0
-
-smField4t = Frame("SmallField4t", (smFrameSize, smFrameSize), [])
-smField4t.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField4t.make_slit_patterns("Multiple Paths", pitch, slitColumnSpacing, widths, length, 180, 100, 100, 30, l_smBeam)
-
-smField5t = Frame("SmallField5t", (smFrameSize, smFrameSize), [])
-smField5t.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField5t.make_slit_patterns("Single Junction", pitch, slitColumnSpacing, widths, length, 180, 100, 100, 30, l_smBeam)
-
-smField6t = Frame("SmallField6t", (smFrameSize, smFrameSize), [])
-smField6t.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
-smField6t.make_slit_patterns("Multiple Junction", pitch, slitColumnSpacing, widths, length, 180, 100, 100, 30, l_smBeam)
-
-# quantum_playground = make_qp()
-
-# emptyAlignField = Frame("EmptyAlignField", (smFrameSize, smFrameSize), [])
-# # emptyAlignField.make_align_markers(2., 20., (180., 180.), l_lgBeam, joy_markers=True)
-
-# centerLeftAlignField = Frame("CenterLeftAlignField", (smFrameSize, smFrameSize), [])
-# centerLeftAlignField.make_align_markers(2., 20., (180., 180.), l_lgBeam, joy_markers=True)
-# centerLeftAlignField.add(quantum_playground)
-
-# centerRightAlignField = Frame("CenterRightAlignField", (smFrameSize, smFrameSize), [])
-# centerRightAlignField.make_align_markers(2., 20., (180., 180.), l_lgBeam, joy_markers=True)
-# centerRightAlignField.add(quantum_playground, rotation=45)
-
-# Add everything together to a top cell
 topCell = Cell("TopCell")
-topCell.add(lgField)
-smFrameSpacing = 800  # Spacing between the three small frames
-dx = smFrameSpacing + smFrameSize
-dy = smFrameSpacing + smFrameSize
-topCell.add(smField1, origin=(-dx / 4., -3*dy / 4.))
-topCell.add(smField2, origin=(dx / 4., -3*dy / 4.))
-topCell.add(smField3, origin=(3*dx / 4., -3*dy / 4.))
-topCell.add(smField4, origin=(3*dx / 4., -dy / 4.))
-topCell.add(smField5, origin=(3*dx / 4., dy / 4.))
-topCell.add(smField6, origin=(3*dx / 4., 3*dy / 4.))
-topCell.add(smField1t, origin=(-3*dx / 4. , -3*dy / 4.))
-topCell.add(smField2t, origin=(-3*dx / 4. , -dy / 4.))
-topCell.add(smField3t, origin=(-3*dx / 4. , dy / 4.))
-topCell.add(smField4t, origin=(-3*dx / 4., 3*dy / 4.))
-topCell.add(smField5t, origin=(-dx / 4., 3*dy / 4.))
-topCell.add(smField6t, origin=(dx / 4., 3*dy / 4.))
-# topCell.add(centerLeftAlignField, origin=(-dx / 2, 0.))
-# topCell.add(centerRightAlignField, origin=(dx / 2, 0.))
-# topCell.add(emptyAlignField, origin=(0., 0.))
-# topCell.add(emptyAlignField, origin=(0., dy / 2.))
-# topCell.add(emptyAlignField, origin=(0., -dy / 2.))
-topCell.spacing = np.array([4000., 4000.])
+sm_writer = False
+lg_label = ""
+
+
+# Crate large field array following the geometry set at the beginning. 
+for lg_row in range(0, lgField_num):
+    for lg_col in range(0, lgField_num):
+        
+        # Single slit, width/length dependence (orientation 0°).   lgField: 1x1,1x2,2x1,2x2 + 3x3,3x4,4x3,4x4
+        if (lg_row+1 == 1 and lg_col+1 == 1) or (lg_row+1 == 2 and lg_col+1 == 1) or (lg_row+1 == 1 and lg_col+1 == 2) or(lg_row+1 == 2 and lg_col+1 == 2) or  (lg_row+1 == 3 and lg_col+1 == 3) or (lg_row+1 == 4 and lg_col+1 == 3) or (lg_row+1 == 3 and lg_col+1 == 4) or (lg_row+1 == 4 and lg_col+1 == 4):
+            sm_writer = True
+            lg_label = "Single Slit - 0deg"
+            num_slit = [1,1,1]
+            rot_angle = 0
+            _pitch = [pitch_std,pitch_std,pitch_std]
+            
+            if lg_col % 2 == 0:
+                _width = widths_sm
+            elif lg_col % 2 == 1:
+                 _width = widths_lg
+            
+            if lg_row % 2 == 0:
+                _length = lenghts_sm
+            elif lg_row % 2 == 1:
+                _length = lengths_lg
+       
+        # Single slit, width/length dependence (orientation 45°):                   1x3,1x4,2x3,2x4 
+        elif (lg_col+1 == 3 and lg_row+1 == 1) or (lg_col+1 == 3 and lg_row+1 == 2) or (lg_col+1 == 4 and lg_row+1 == 1) or (lg_col+1 == 4 and lg_row+1 == 2):
+            sm_writer = True
+            lg_label = "Single Slit - 45deg"
+            num_slit = [1,1,1]
+            rot_angle = 45
+            _pitch = [pitch_std,pitch_std,pitch_std]
+            
+            if lg_col+1 ==3:
+                _width = widths_sm
+            elif lg_col+1 ==4:
+                 _width = widths_lg
+            
+            if lg_row+1 == 1:
+                _length = lenghts_sm
+            elif lg_row+1 == 2:
+                _length = lengths_lg
+                
+        # Multiple slits, pitch dependence, width/length fixed (orientation 0°):    3x1,3x2,4x1,4x2
+        elif (lg_col+1 == 1 and lg_row+1 == 3) or (lg_col+1 == 1 and lg_row+1 == 4) or (lg_col+1 == 2 and lg_row+1 == 3) or (lg_col+1 == 2 and lg_row+1 == 4):
+            sm_writer = True
+            _width = [width_std , width_std , width_std ]
+            lg_label = "Multiple Slit - 0deg"
+            num_slit = num_slits_sm
+            rot_angle = 0
+            _length = [lenght_std, lenght_std, lenght_std] 
+
+            _pitch = pitches
+            
+            if lg_col == 1:
+                num_slits = num_slits_sm
+            elif lg_col == 2:
+                num_slits = num_slits_lg
+
+        else: 
+            lg_label = "ERROR"
+            sm_writer = False
+
+        #Coordinates of the large field and Marker positioning geometry
+        lg_orig_x, lg_orig_y = -4*lgField_spacing + lg_col*lgField_spacing, -lgField_spacing - lg_row*lgField_spacing
+        lgMark_margin = 50.
+        lgMark_position = lgField_size/2 - lgMark_margin
+
+        #Large Field 
+        #lgField_name = "LargeField_"+str(lg_row+1)+"x"+str(lg_col+1)
+        lgField = Frame("LargeField", (lgField_size/2, lgField_size/2), [])  # Create the large write field
+        lgField.make_align_markers(10., 200., (lgMark_position, lgMark_position), l_lgBeam, joy_markers=True, camps_markers=True)
+        lgField_label = Label(lg_label, 20., position = (lg_orig_x-150,lg_orig_y + lgField_size/2), layer=l_lgBeam)
+    
+        topCell.add(lgField, origin=(lg_orig_x, lg_orig_y)) 
+        topCell.add(lgField_label)
+
+        # Create the smaller write field aligned with the large field.
+        if sm_writer:                               # the sm_writer will avoid errors if there are inconsistencies when changing the large and small field geometry
+            for sm_row in range(0, smField_num):
+                for sm_col in range(0, smField_num):
+                    
+                    #Coordinates of the small field and Marker positioning geometry
+                    dx = int(smField_num/2)*sm_spacing
+                    dy = -dx
+                    sm_orig_x = lg_orig_x - (1-sm_col)*dx
+                    sm_orig_y = lg_orig_y - (1-sm_row)*dy
+                    smMark_margin = 10
+                    smMarkerPosition = smField_size/2 - smMark_margin
+
+
+                    #Small Field
+                    #smField_name = "SmallField_"+str(sm_row+1)+"x"+str(sm_col+1)
+                    smField = Frame("SmallField", (smField_size, smField_size), [])
+                    #smField.make_slits(_width[sm_col], num_slit[sm_col], _pitch[sm_row], rot_angle, layers = l_smBeam)
+                    smField.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
+                    
+                    # Finger Contacts
+                    #smField.make_finger_contacts(distance = 0., layers= l_PHBeam) #ADJUST LAYERS
+
+                    # Outer Labels
+                    if sm_row == 0:
+                        if num_slit[sm_col] == 1:
+                            sm_label_top = "w = " + str(_width[sm_col])
+                        else:
+                            sm_label_top = "n = " + str(num_slit[sm_col])
+                        smField_label_top = Label(sm_label_top, 10., position = (sm_orig_x-30, sm_orig_y - dy), layer=l_lgBeam)
+                        topCell.add(smField_label_top)
+
+                    if sm_col == 0:
+                        if num_slit[sm_col] == 1:
+                            sm_label_lat = "l = " + str(_length[sm_row])
+                        else:
+                            sm_label_lat = "p = " + str(_pitch[sm_row])
+                        smField_label_lat = Label(sm_label_lat, 10., position = (sm_orig_x-dx, sm_orig_y - 30), angle = 90, layer=l_lgBeam)
+                        topCell.add(smField_label_lat)
+
+                    topCell.add(smField, origin=(sm_orig_x, sm_orig_y))
 
 # %%Create the layout and output GDS file
 layout = Layout('LIBRARY')
