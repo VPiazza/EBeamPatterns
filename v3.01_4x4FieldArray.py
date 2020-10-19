@@ -469,30 +469,28 @@ class Frame(Cell):
             self.add(self.align_markers)
 
     ### Define slits for device analysis ##                    
-    def make_slits(self, width, nslit, pitch, rot_angle, layers):
+    def make_slits(self, length, width, nslit, pitch, rot_angle, layers):
+        """
+        Define a single slit or a slit array with a given length, width and pitch
+        """
+        slitField = Cell("slitField")
 
         slit = Cell("Single Slit")
         slit_path = Path([(-length / 2., 0), (length / 2., 0)], width = width, layer = layers)
         slit.add(slit_path)
-
-        slits = CellArray(slit, 1, nslit, spacing= (0, pitch+width/2))
-        slits.translate((0, -(nslit - 1) * pitch / 2.))
-        slit_array = Cell("Multiple Slit")
-        slit_array.add(slits)
-
-
-        if nslit == 1:        
-            #text_top = Label("w=" + str(width), 5., position = (-10, (smField_size/2)-5))
-            self.add(slit, rot_angle)
-           # self.add(text_top)
+        
+        if nslit == 1:
+            slitField.add(slit, origin=(0,0), rotation=rot_angle)
         elif nslit > 1:
-            # text_top = Label("n=" + str(nslit), 5., position = (-5, (smField_size/2)-5))
-            # text_lat = Label("p=" + str(pitch), 5., position = (-(smField_size/2)+5, -5), angle=90)
-            # slit_array.add(text_top)
-            # slit_array.add(text_lat)
-            self.add(slit_array, rot_angle)
-            #self.add(text_top)
-            #self.add(text_lat)
+            slits = CellArray(slit, 1, nslit, (0,pitch+width/2))
+            slits.translate((0, -(nslit - 1) * pitch / 2.))
+            slit_array = Cell("Multiple Slit")
+            slit_array.add(slits)
+            slitField.add(slit_array, origin=(0,0), rotation=rot_angle)
+        else:
+            print("Error in the number of slits. Check the internal code"*50)
+            quit()
+        self.add(slitField)
  
 #    # def make_finger_contacts(self, distance, layers):
 #         lenght_cont = 50.
@@ -621,7 +619,7 @@ for lg_row in range(0, lgField_num):
                     #Small Field
                     #smField_name = "SmallField_"+str(sm_row+1)+"x"+str(sm_col+1)
                     smField = Frame("SmallField", (smField_size, smField_size), [])
-                    smField.make_slits(_width[sm_col], num_slit[sm_col], _pitch[sm_row], rot_angle, layers = l_smBeam)
+                    smField.make_slits(length, _width[sm_col], num_slit[sm_col], _pitch[sm_row], rot_angle, layers=l_smBeam)
                     smField.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
                     
                     # Finger Contacts
