@@ -57,8 +57,6 @@ pad_size = 200.     # Square contact pad side lenght
 smField_size = 100. # Area of each test 
 sm_spacing = pad_size + smField_size                        # ACTUAL: 3x3 Sm Fields
 smField_num = int((lgField_size-200)/sm_spacing-1)
-finger_width = 20.  # Connecting metal bars
-finger_length = 0.6*smField_size
 rotAngle = 0.  # Rotation angle of the membranes
 wafer_r = 25e3
 waferVer = "100_Membranes".format()
@@ -381,6 +379,8 @@ class MBE100Wafer(Wafer_GridStyle):
     ## Design of the contact pads into each Large Field
     def add_contacts(self, layers):
         corner_pos = pad_size/2
+        finger_width = 20.  
+        finger_length = 80.
         n_cont = smField_num + 1
 
         contact_pads = Cell('Contact_Pads')
@@ -492,14 +492,35 @@ class Frame(Cell):
             quit()
         self.add(slitField)
  
-#    # def make_finger_contacts(self, distance, layers):
-#         lenght_cont = 50.
-        
-#         contact = Cell(" Finger contact")
-#         contact_rect = Rectangle((-lenght_cont / 2., -0.2*finger_width/2), (lenght_cont / 2., -0.2*finger_width/2), layer = layers)
-#         contact.add(contact_rect)
+    def make_finger_contacts(self, slit_length, layers):
+        fing_lenght = 57.5
+        fing_width = 1.
+        fing_contact = 10.
+        margin = fing_contact/2
 
-#         self.add(contact)
+        relative_x = fing_lenght/2-fing_width/2
+        relative_y = fing_contact/2-fing_width/2
+
+        
+        contact = Cell(" FingerContact")
+        
+        finger_rect = Rectangle((-fing_lenght / 2., -fing_width/2), (fing_lenght / 2., fing_width/2), layer = layers)
+        finger = Cell("Finger")
+        finger.add(finger_rect)
+        
+        contact_rect = Rectangle((-fing_contact / 2., -fing_width/2), (fing_contact / 2., fing_width/2), layer = layers)
+        contact_finger = Cell("ContactFinger") 
+        contact_finger.add(contact_rect)
+
+        contact.add(finger)
+        contact.add(contact_finger, origin = (relative_x, -relative_y), rotation=90)
+
+        orig_x = -60+fing_lenght/2 - margin
+        orig_y = 26.            
+
+
+        self.add(contact, origin =(orig_x, orig_y))
+        self.add(contact, origin =(-orig_x, -orig_y), rotation = 180)
 
 
 
@@ -521,7 +542,7 @@ lenghts_sm = [0.25, 0.5, 1.]
 lengths_lg = [2., 5., 10.]                      # 6 lenghts
 pitches = [0.5, 1., 2.]                         # 3 pitches
 num_slits_sm = [2, 5, 10] 
-num_slits_lg = [15, 20, 30]                     # 6 multiple slits
+num_slits_lg = [15, 20, 25]                     # 6 multiple slits   25 slits is the maximum for the chosen geometry
 
 topCell = Cell("TopCell")
 sm_writer = False
@@ -573,16 +594,15 @@ for lg_row in range(0, lgField_num):
             sm_writer = True
             _width = [width_std , width_std , width_std ]
             lg_label = "Multiple Slit - 0deg"
-            num_slit = num_slits_sm
             rot_angle = 0
             _length = [lenght_std, lenght_std, lenght_std] 
 
             _pitch = pitches
             
-            if lg_col == 1:
-                num_slits = num_slits_sm
-            elif lg_col == 2:
-                num_slits = num_slits_lg
+            if lg_col+1 == 1:
+                num_slit = num_slits_sm
+            elif lg_col+1 == 2:
+                num_slit = num_slits_lg
 
         else: 
             lg_label = "ERROR"
@@ -598,9 +618,6 @@ for lg_row in range(0, lgField_num):
         lgField = Frame("LargeField", (lgField_size/2, lgField_size/2), [])  # Create the large write field
         lgField.make_align_markers(10., 200., (lgMark_position, lgMark_position), l_lgBeam, joy_markers=True, camps_markers=True)
         lgField_label = Label(lg_label, 20., position = (lg_orig_x-150,lg_orig_y + lgField_size/2), layer=l_lgBeam)
-    
-        topCell.add(lgField, origin=(lg_orig_x, lg_orig_y)) 
-        topCell.add(lgField_label)
 
         # Create the smaller write field aligned with the large field.
         if sm_writer:                               # the sm_writer will avoid errors if there are inconsistencies when changing the large and small field geometry
@@ -623,7 +640,7 @@ for lg_row in range(0, lgField_num):
                     smField.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
                     
                     # Finger Contacts
-                    #smField.make_finger_contacts(distance = 0., layers= l_PHBeam) #ADJUST LAYERS
+                    smField.make_finger_contacts(length, layers= l_PHBeam) #ADJUST LAYERS
 
                     # Outer Labels
                     if sm_row == 0:
@@ -643,6 +660,9 @@ for lg_row in range(0, lgField_num):
                         topCell.add(smField_label_lat)
 
                     topCell.add(smField, origin=(sm_orig_x, sm_orig_y))
+
+        topCell.add(lgField, origin=(lg_orig_x, lg_orig_y)) 
+        topCell.add(lgField_label)
                     
 
 # %%Create the layout and output GDS file
