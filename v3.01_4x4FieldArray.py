@@ -21,7 +21,6 @@ Created on Fri Sept 11 08:51:31 2020
 1.5.1 - Changed all slits to path objects (instead of rectangles) 
 
 3.0.1 - 4x4 Fields containing 16 small fields each. Based on the work of Martin Friedl.
-        To Modify:  1. URGENT: Problem with gds writing!!
         TO CHECK AT THE END: Modification of the large field and of the small field should modify consistently everything!!
 """
 
@@ -41,7 +40,7 @@ import numpy as np
 from Patterns.GrowthTheoryCell import make_theory_cell
 from Patterns.QuantumPlayground_100_v1 import make_qp
 from gdsCAD_py3.core import Cell, Boundary, CellArray, Layout, Path
-from gdsCAD_py3.shapes import Box, Rectangle, Label
+from gdsCAD_py3.shapes import Box, Rectangle, Label, RegPolygon
 from gdsCAD_py3.templates100 import Wafer_GridStyle, dashed_line
 
 WAFER_ID = '000011111111'  # CHANGE THIS FOR EACH DIFFERENT WAFER
@@ -492,35 +491,64 @@ class Frame(Cell):
             quit()
         self.add(slitField)
  
-    def make_finger_contacts(self, slit_length, layers):
-        fing_lenght = 57.5
+    def make_finger_contacts(self, slit_length, length, nslit, pitch, rot_angle, layers):
+        cont_to_cent = 60.
+        margin = 2.5
         fing_width = 1.
-        fing_contact = 10.
-        margin = fing_contact/2
+        rad_angle = rot_angle/180*np.pi
+        fing_ext_length = cont_to_cent - (slit_length/2-margin)*np.cos(rad_angle) # 0.5 margin to avoid the contact on the edge of the slit.
+        fing_ext_hook = 30. + nslit/2 * pitch + np.sin(rad_angle)*slit_length/2
+        fing_int_length = cont_to_cent + margin + nslit/2 * pitch + np.sin(rot_angle)*length
+        cont_conn_length = 6.
 
-        relative_x = fing_lenght/2-fing_width/2
-        relative_y = fing_contact/2-fing_width/2
-
+        #if rot_angle == 90:
         
         contact = Cell(" FingerContact")
+
+        triangle = RegPolygon((0,0), cont_conn_length, 3, layer = layers)
+        conn_triangle = Cell("ConnTriangle")
+        conn_triangle.add(triangle)
         
-        finger_rect = Rectangle((-fing_lenght / 2., -fing_width/2), (fing_lenght / 2., fing_width/2), layer = layers)
-        finger = Cell("Finger")
-        finger.add(finger_rect)
+        finger_rect = Rectangle((-fing_ext_length / 2., -fing_width/2), (fing_ext_length / 2., fing_width/2), layer = layers)
+        finger_ext = Cell("Finger")
+        finger_ext.add(finger_rect)
         
-        contact_rect = Rectangle((-fing_contact / 2., -fing_width/2), (fing_contact / 2., fing_width/2), layer = layers)
-        contact_finger = Cell("ContactFinger") 
-        contact_finger.add(contact_rect)
+        hook = Rectangle(( -fing_ext_hook / 2., -fing_width/2), (fing_ext_hook / 2., fing_width/2), layer = layers)
+        hook_finger = Cell("ContactFinger") 
+        hook_finger.add(hook)
 
-        contact.add(finger)
-        contact.add(contact_finger, origin = (relative_x, -relative_y), rotation=90)
+        finger_middle = Rectangle((-fing_int_length / 2., -fing_width/2), (fing_int_length / 2., fing_width/2), layer = layers)
+        finger_int = Cell("Middle Finger")
+        finger_int.add(finger_middle)
 
-        orig_x = -60+fing_lenght/2 - margin
-        orig_y = 26.            
+        # Relative coordinates for horizontal elements (origin = center of the triangle)
+        h_finger_to_triangle_x = fing_ext_length/2
+        h_hook_to_triangle_x = fing_ext_length - fing_width/2
+        h_hook_to_triangle_y = -fing_ext_hook/2 + fing_width/2
 
+        # Relative coordinates for vertical elements (origin = center of the triangle)
+        v_finger_to_triangle_x = fing_int_length/2
 
-        self.add(contact, origin =(orig_x, orig_y))
-        self.add(contact, origin =(-orig_x, -orig_y), rotation = 180)
+        cont_ext = Cell("ExternalContact")
+        cont_ext.add(conn_triangle)
+        cont_ext.add(finger_ext, origin = (h_finger_to_triangle_x, 0))
+        cont_ext.add(hook_finger, origin =(h_hook_to_triangle_x, h_hook_to_triangle_y), rotation = 90)
+
+        cont_int = Cell("InternalContact")
+        cont_int.add(conn_triangle)
+        cont_int.add(finger_int, origin = (v_finger_to_triangle_x, 0))
+
+        # Coordinates Horizontal and Vertical Contacts into the small field
+        hor_x = -60
+        hor_y = 26.
+        vert_x = (-length - fing_width/2)*np.cos(rad_angle) - (1-np.cos(rad_angle))*(fing_width/2)
+        vert_y = 60
+
+        contact.add(cont_ext, origin = (hor_x, hor_y))
+        contact.add(cont_int, origin = (vert_x, vert_y), rotation = -90)       
+
+        self.add(contact)
+        self.add(contact, rotation = 180)
 
 
 
@@ -639,8 +667,8 @@ for lg_row in range(0, lgField_num):
                     smField.make_slits(length, _width[sm_col], num_slit[sm_col], _pitch[sm_row], rot_angle, layers=l_smBeam)
                     smField.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
                     
-                    # Finger Contacts
-                    smField.make_finger_contacts(length, layers= l_PHBeam) #ADJUST LAYERS
+                    # Finger Contacts (for the moment the distance between central fingers is set to)
+                    smField.make_finger_contacts(length, 5., num_slit[sm_col], _pitch[sm_row], rot_angle, layers= l_PHBeam) #ADJUST LAYERS
 
                     # Outer Labels
                     if sm_row == 0:
