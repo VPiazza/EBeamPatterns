@@ -21,6 +21,7 @@ Created on Fri Sept 11 08:51:31 2020
 1.5.1 - Changed all slits to path objects (instead of rectangles) 
 
 3.0.1 - 4x4 Fields containing 16 small fields each. Based on the work of Martin Friedl.
+
         TO CHECK AT THE END: Modification of the large field and of the small field should modify consistently everything!!
 """
 
@@ -62,13 +63,13 @@ waferVer = "100_Membranes".format()
 
 waferLabel = waferVer + '\n' + date.today().strftime("%d%m%Y")
 # Layers
-l_smBeam = 0
-l_lgBeam = 1
-l_PHBeam = 10
+l_smBeam = 0        # 2nd job small ebeam 
+l_lgBeam = 1        # 1st job large ebeam 
+l_PHBeam = 10       # 3rd job large ebeam 
 l_drawing = 100         
 
 ### Checking geometrical parameters:
-precheck= False
+precheck= True
 intro = "You are starting to write your layout."
 wafer_type = "**\nAre writing on a 2\" wafer? [y/n]  "
 block_type = "**\nDo you want to write 1cmx1cm chip? [y/n]  "
@@ -389,12 +390,13 @@ class MBE100Wafer(Wafer_GridStyle):
         finger = Rectangle((-finger_width/2,-finger_length/2), (finger_width/2,finger_length/2), layer=layers)
         finger_cell = Cell('Finger Cell')
         finger_cell.add(finger)
+        n_finger = n_cont - 1
 
         pad_array = CellArray(pad_cell, n_cont, n_cont, (sm_spacing, sm_spacing), origin = (0, 0))
-        finger_array1 = CellArray(finger_cell, n_cont, n_cont, (sm_spacing, sm_spacing), origin=(corner_pos - finger_width, corner_pos + finger_length/2))
-        finger_array2 = CellArray(finger_cell, n_cont, n_cont, (sm_spacing, sm_spacing), origin=(-corner_pos + finger_width, -corner_pos - finger_length/2))
-        finger_array3 = CellArray(finger_cell, n_cont, n_cont, (sm_spacing, sm_spacing), rotation = 90, origin=((n_cont-1)*sm_spacing - corner_pos - finger_length/2, corner_pos - finger_width))
-        finger_array4 = CellArray(finger_cell, n_cont, n_cont, (sm_spacing, sm_spacing), rotation = 90, origin=((n_cont-1)*sm_spacing + corner_pos + finger_length/2, -corner_pos + finger_width))
+        finger_array1 = CellArray(finger_cell, n_finger, n_finger, (sm_spacing, sm_spacing), origin=(corner_pos - finger_width, +corner_pos + finger_length/2))
+        finger_array2 = CellArray(finger_cell, n_finger, n_finger, (sm_spacing, sm_spacing), origin=(sm_spacing -corner_pos + finger_width, sm_spacing -corner_pos - finger_length/2))
+        finger_array3 = CellArray(finger_cell, n_finger, n_finger, (sm_spacing, sm_spacing), rotation = 90, origin=((n_cont-1)*sm_spacing - corner_pos - finger_length/2, corner_pos - finger_width))
+        finger_array4 = CellArray(finger_cell, n_finger, n_finger, (sm_spacing, sm_spacing), rotation = 90, origin=((n_cont-2)*sm_spacing + corner_pos + finger_length/2, sm_spacing -corner_pos + finger_width))
        
         contact_pads.add(pad_array)
         contact_pads.add(finger_array1)
@@ -500,8 +502,6 @@ class Frame(Cell):
         fing_ext_hook = 30. + nslit/2 * pitch + np.sin(rad_angle)*slit_length/2
         fing_int_length = cont_to_cent + margin + nslit/2 * pitch + np.sin(rot_angle)*length
         cont_conn_length = 6.
-
-        #if rot_angle == 90:
         
         contact = Cell(" FingerContact")
 
@@ -564,7 +564,7 @@ lenght_std = 10.
 
 
 # Since the 3x3 arrays of small field, the array MUST contain 3 values.
-widths_sm = (0.02, 0.05, 0.10)
+widths_sm = [0.02, 0.05, 0.10]
 widths_lg = [0.15, 0.20, 0.25]                  # 6 widths
 lenghts_sm = [0.25, 0.5, 1.] 
 lengths_lg = [2., 5., 10.]                      # 6 lenghts
@@ -668,7 +668,7 @@ for lg_row in range(0, lgField_num):
                     smField.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
                     
                     # Finger Contacts (for the moment the distance between central fingers is set to)
-                    smField.make_finger_contacts(length, 5., num_slit[sm_col], _pitch[sm_row], rot_angle, layers= l_PHBeam) #ADJUST LAYERS
+                    smField.make_finger_contacts(length, _length[sm_row]/2, num_slit[sm_col], _pitch[sm_row], rot_angle, layers= l_PHBeam) #ADJUST LAYERS
 
                     # Outer Labels
                     if sm_row == 0:

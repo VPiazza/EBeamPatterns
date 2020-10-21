@@ -1,0 +1,50 @@
+
+Characterization Chip - 4x4 Field Array (v3.0.1)
+
+
+OVERALL:
+Chip size = 1 cm x 1 cm
+4 PAMMs on the central lanes
+Chip ID at the center
+Wafer ID at the center and on the outer frame
+16 Large fields distributed in a 4x4 array
+
+	LARGE FIELD:
+	4 AMs at the corner of the field
+	Label on top (description of the type of slits in the large field)
+	4x4 array of contact pads, defining a 3x3 array of small fields
+	Labels of the small fields(description of the geometrical parameters of the slit)
+		* These labels are placed on top and on the left part to form a grid. The 
+		  crossed infos define the parameters investigated in each small field.
+	
+		SMALL FIELD:
+		4 AMs at the corner of the field
+		Slit/Slit array
+		Top contacts 
+
+          PARAMETERS INVESTIGATED:
+widths_sm = [0.02, 0.05, 0.10]
+widths_lg = [0.15, 0.20, 0.25]                  # 6 widths (micron)
+lenghts_sm = [0.25, 0.5, 1.] 
+lengths_lg = [2., 5., 10.]                      # 6 lenghts (micron)
+pitches = [0.5, 1., 2.]                         # 3 pitches  (micron)
+
+num_slits_sm = [2, 5, 10] 
+num_slits_lg = [15, 20, 25]  			# 6 number of slits
+Orientations = [0°, 45°]			# 2 Slit Orientation
+
+SS = Single Slit
+w = width
+l = length
+n = number of slit
+p = pitch
+() = orientation
+
+					Column
+		1		2		3		4
+	1  SS + w&l(0°)	  SS + w&l(0°)	  SS + w&l(45°)     SS + w&l(45°)
+	2  SS + w&l(0°)   SS + w&l(0°)	  SS + w&l(45°)     SS + w&l(45°)
+Row	3  MS + n&p(0°)	  MS + n&p(0°)    SS + w&l(0°)	    SS + w&l(0°)
+	4  MS + n&p(0°)   MS + n&p(0°)	  SS + w&l(0°)      SS + w&l(0°)	 
+
+
