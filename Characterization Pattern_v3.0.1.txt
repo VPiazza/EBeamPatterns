@@ -27,7 +27,7 @@ widths_sm = [0.02, 0.05, 0.10]
 widths_lg = [0.15, 0.20, 0.25]                  # 6 widths (micron)
 lenghts_sm = [0.25, 0.5, 1.] 
 lengths_lg = [2., 5., 10.]                      # 6 lenghts (micron)
-pitches = [0.5, 1., 2.]                         # 3 pitches  (micron)
+pitches = [0.5, 1., 2]                         # 3 pitches  (micron)
 
 num_slits_sm = [2, 5, 10] 
 num_slits_lg = [15, 20, 25]  			# 6 number of slits
@@ -47,4 +47,24 @@ p = pitch
 Row	3  MS + n&p(0°)	  MS + n&p(0°)    SS + w&l(0°)	    SS + w&l(0°)
 	4  MS + n&p(0°)   MS + n&p(0°)	  SS + w&l(0°)      SS + w&l(0°)	 
 
+
+       	FEEDBACKS:
+
+V	l_STD = 40 um
+V	Reservoir --> fake slits
+
+	NICK:
+
+V	p_STD = 1.
+V	n_STD1= 1		[1x1]
+V	n_STD2 = 5		[3x3]
+V	pitches = [0.5, 1., 1.5]                         # 3 pitches  (micron)
+V	num_slits_sm = [10, 15, 20] 
+V	num_slits_lg = [25, 30, 35]  			 # 6 number of slits
+V	widths_sm = [0.05, 0.05, 0.10]
+V	widths_lg = [0.15, 0.20, 0.19]                   # 6 widths (micron)
+V	lenghts_sm = [2.0, 0.5, 1.]  
+V	lengths_lg = [2., 5., 10.]                       # 6 lenghts (micron)
+
+V	No orientation
 

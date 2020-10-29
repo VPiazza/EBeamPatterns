@@ -21,6 +21,10 @@ Created on Fri Sept 11 08:51:31 2020
 1.5.1 - Changed all slits to path objects (instead of rectangles) 
 
 3.0.1 - 4x4 Fields containing 16 small fields each. Based on the work of Martin Friedl.
+3.1.1 - 4x4 Fields containing 16 small fields each. Based on the work of Martin Friedl.
+        The script is optimized for photodetection. Written in collaboration with Nicholas P. Morgan.
+3.2.1 - 4x4 Fields containing 16 small fields each. Based on the work of Martin Friedl.
+        The script is optimized for quantum network. Written in collaboration with Didem Dede.
 
         TO CHECK AT THE END: Modification of the large field and of the small field should modify consistently everything!!
 """
@@ -498,12 +502,19 @@ class Frame(Cell):
 
         margin = 2.5
         cont_to_cent = 60.
+        global fing_width
         fing_width = 1.
+
+        global rad_angle
         rad_angle = rot_angle/180*np.pi
+
         fing_ext_length = cont_to_cent - (slit_length/2-margin)*np.cos(rad_angle) 
         fing_ext_hook = 30. + nslit/2 * pitch + np.sin(rad_angle)*slit_length/2
         fing_int_length = cont_to_cent + nslit/2 * pitch + np.sin(rot_angle)*length + margin
         cont_conn_length = 2*margin
+
+        global fake_slit_length
+        fake_slit_length = cont_to_cent-fing_ext_length - length - margin - fing_width/2
         
         contact = Cell(" FingerContact")
 
@@ -557,7 +568,8 @@ class Frame(Cell):
         res_slit = 5
 
         gap = contact_distance + 2. + 2.  
-        res_length = (length - gap - 2.5*margin)/2 
+        #res_length = (length - gap - 2.5*margin)/2 
+        res_length = fake_slit_length
         res_width = width_std
         res_pitch = pitch
 
@@ -567,8 +579,12 @@ class Frame(Cell):
         res_path = Path([(-res_length / 2., 0), (res_length / 2., 0)], width = res_width, layer = layers)
         reservoir.add(res_path)
 
-        reservoirs= CellArray(reservoir, 2, res_slit, spacing = (res_length + gap, res_pitch))
-        reservoirs.translate((-(res_length + gap)/2,0))
+        x_spac = (res_length + gap)/np.cos(rad_angle) 
+        y_spac = res_pitch
+
+        reservoirs= CellArray(reservoir, 2, res_slit, spacing = (x_spac, y_spac))
+        x_transl = -(res_length + gap)/(2*np.cos(rad_angle)) + (margin)*np.sin(rad_angle)
+        reservoirs.translate((x_transl,0))
         res_array = Cell("Multiple Slit")
         res_array.add(reservoirs)
         resField.add(res_array, origin=(0,0), rotation=rot_angle)
@@ -586,8 +602,8 @@ class Frame(Cell):
 
 
 
-        self.add(resField, origin= (0,(nslit+1) * pitch/2 ))
-        self.add(resField, origin= (0, -((nslit+1+(2*(res_slit-1))) * pitch/2 )))
+        self.add(resField, origin= (0,(nslit+1) * pitch/2 )/np.cos(rad_angle))
+        self.add(resField, origin= (0, -((nslit+1+(2*(res_slit-1))) * pitch/2 )/np.cos(rad_angle)))
 
 # %%Create the pattern that we want to write
 
@@ -621,7 +637,7 @@ for lg_row in range(0, lgField_num):
         # Single slit, width/length dependence (orientation 0°).   lgField: 1x1,1x2,2x1,2x2 + 3x3,3x4,4x3,4x4
         if (lg_row+1 == 1 and lg_col+1 == 1) or (lg_row+1 == 2 and lg_col+1 == 1) or (lg_row+1 == 1 and lg_col+1 == 2) or(lg_row+1 == 2 and lg_col+1 == 2) or  (lg_row+1 == 3 and lg_col+1 == 3) or (lg_row+1 == 4 and lg_col+1 == 3) or (lg_row+1 == 3 and lg_col+1 == 4) or (lg_row+1 == 4 and lg_col+1 == 4):
             sm_writer = True
-            lg_label = "Single Slit - 0deg"
+            lg_label = "Single Slit - 0deg  \nPitch = " + str(pitch_std) + "um"
             num_slit = [1,1,1]
             rot_angle = 0
             _pitch = [pitch_std,pitch_std,pitch_std]
@@ -639,7 +655,7 @@ for lg_row in range(0, lgField_num):
         # Single slit, width/length dependence (orientation 45°):                   1x3,1x4,2x3,2x4 
         elif (lg_col+1 == 3 and lg_row+1 == 1) or (lg_col+1 == 3 and lg_row+1 == 2) or (lg_col+1 == 4 and lg_row+1 == 1) or (lg_col+1 == 4 and lg_row+1 == 2):
             sm_writer = True
-            lg_label = "Single Slit - 45deg"
+            lg_label = "Single Slit - 45deg\nPitch = " + str(pitch_std) + "um"
             num_slit = [1,1,1]
             rot_angle = 45
             _pitch = [pitch_std,pitch_std,pitch_std]
@@ -658,7 +674,7 @@ for lg_row in range(0, lgField_num):
         elif (lg_col+1 == 1 and lg_row+1 == 3) or (lg_col+1 == 1 and lg_row+1 == 4) or (lg_col+1 == 2 and lg_row+1 == 3) or (lg_col+1 == 2 and lg_row+1 == 4):
             sm_writer = True
             _width = [width_std , width_std , width_std ]
-            lg_label = "Multiple Slit - 0deg"
+            lg_label = "Multiple Slit - 0deg\nLength = " + str(lenght_std) + "um\nWidth = " + str(width_std) + "um"
             rot_angle = 0
             _length = [lenght_std, lenght_std, lenght_std] 
 
