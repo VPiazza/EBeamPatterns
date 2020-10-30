@@ -75,7 +75,8 @@ waferLabel = waferVer + '\n' + date.today().strftime("%d%m%Y")
 l_smBeam = 0        # 2nd job small ebeam 
 l_lgBeam = 1        # 2nd job large ebeam 
 l_markers = 2       # 1st job large beam
-l_FinBeam = 10      # 3rd job large ebeam 
+l_FinlgBeam = 10    # 3rd job large ebeam 
+l_FinsmBeam = 20    # 3rd job large ebeam 
 l_drawing = 100         
 
 ### Checking geometrical parameters:
@@ -526,7 +527,7 @@ class Frame(Cell):
         cont_conn_length = 2*margin
 
         global fake_slit_length
-        fake_slit_length = cont_to_cent-fing_ext_length - length - margin - fing_width/2
+        fake_slit_length = cont_to_cent-fing_ext_length - length - margin/2 - fing_width/2
         
         contact = Cell(" FingerContact")
 
@@ -576,34 +577,55 @@ class Frame(Cell):
         self.add(contact, rotation = 180)
         return 
 
-    def make_slits_reservoir(self, width, nslit, pitch, contact_distance, layers): # 5 additional slits as material reservoir
+    def make_slits_reservoir(self, length, width, nslit, pitch, contact_distance, layers): # 5 additional slits as material reservoir
         res_slit = 5
+        slit_margin = 0.5
 
-        gap = contact_distance + 2. + 2.  
-        #res_length = (length - gap - 2.5*margin)/2 
-        res_length = fake_slit_length
         res_width = width
         res_pitch = pitch
-
+  
         resField = Cell("resField")
 
+        # Outer reservoir
+        outer_res = Cell("Outer Reservoir")
+        out_res_length = (margin - fing_width - slit_margin)
+        outer_res_path = Path([(-out_res_length/2, 0), (out_res_length/2, 0)], width = res_width, layer = layers)
+        outer_res.add(outer_res_path)
+        
+        out_gap = length - margin + slit_margin
+        out_x_spac = (out_res_length+out_gap)/np.cos(rad_angle) 
+        out_y_spac = res_pitch
+         
+
+        out_reservoirs= CellArray(outer_res, 2, res_slit, spacing = (out_x_spac, out_y_spac))
+        out_x_transl = -(out_res_length + out_gap)/(2*np.cos(rad_angle)) + (slit_margin)*np.sin(rad_angle)
+        out_reservoirs.translate((out_x_transl,0))
+        out_res_array = Cell("Multiple Slit")
+        out_res_array.add(out_reservoirs)
+        resField.add(out_res_array, origin=(0,0), rotation=rot_angle)
+
+        # Main reservoir
         reservoir = Cell("Single Reservoir")
+        res_length = fake_slit_length
         res_path = Path([(-res_length / 2., 0), (res_length / 2., 0)], width = res_width, layer = layers)
         reservoir.add(res_path)
 
+        gap = contact_distance + 2*(slit_margin + fing_width)
         x_spac = (res_length + gap)/np.cos(rad_angle) 
         y_spac = res_pitch
+         
 
         reservoirs= CellArray(reservoir, 2, res_slit, spacing = (x_spac, y_spac))
-        x_transl = -(res_length + gap)/(2*np.cos(rad_angle)) + (margin)*np.sin(rad_angle)
+        x_transl = -(res_length + gap)/(2*np.cos(rad_angle)) + (slit_margin)*np.sin(rad_angle)
         reservoirs.translate((x_transl,0))
         res_array = Cell("Multiple Slit")
         res_array.add(reservoirs)
         resField.add(res_array, origin=(0,0), rotation=rot_angle)
 
-        if contact_distance > margin:
+        # Inner reservoir
+        if contact_distance > slit_margin:
             add_slit = Cell("Additional Reservoir")
-            add_res_path = Path([(-(contact_distance - margin) / 2., 0), ((contact_distance - margin) / 2., 0)], width = res_width, layer = layers)
+            add_res_path = Path([(-(contact_distance - 0.5) / 2., 0), ((contact_distance - 0.5) / 2., 0)], width = res_width, layer = layers)
             add_slit.add(add_res_path)
 
             add_reservoir = CellArray(add_slit, 1, res_slit, spacing = (0, res_pitch))
@@ -731,7 +753,7 @@ for lg_row in range(0, lgField_num):
                 mdField = Frame("MiddleField", (md_size_x, md_size_y), [])  # Create the middle write field
                 mdField.make_align_markers(5., 100., (md_size_x/2-mdMark_margin, md_size_y/2-mdMark_margin), l_lgBeam, dimension= 50.,  joy_markers=True, camps_markers=True)
                 #mdField_label = Label(lg_label, 20., position = (lg_orig_x-150,lg_orig_y + lgField_size/2), layer=l_lgBeam)
-                smField_num_x, smField_num_y = mdField.add_contacts(md_size_x, md_size_y, layers = l_FinBeam)
+                smField_num_x, smField_num_y = mdField.add_contacts(md_size_x, md_size_y, layers = l_FinlgBeam)
                 
 
 
@@ -780,10 +802,10 @@ for lg_row in range(0, lgField_num):
                             smField.make_align_markers(2., 20., (smMarkerPosition, smMarkerPosition), l_lgBeam, joy_markers=True)
 
                 #             #Finger Contacts (for the moment the distance between central fingers is set to)
-                            smField.make_finger_contacts(length_slit_std, _length[sm_row]/2, _slit[sm_col], _pitch[sm_row], rot_angle, layers= l_FinBeam) #ADJUST LAYERS
+                            smField.make_finger_contacts(length_slit_std, _length[sm_row]/2, _slit[sm_col], _pitch[sm_row], rot_angle, layers= l_FinsmBeam) #ADJUST LAYERS
                             
                 #             #Material reservoir
-                            smField.make_slits_reservoir(_width[sm_col], _slit[sm_col], _pitch[sm_row], _length[sm_row], layers = l_smBeam)
+                            smField.make_slits_reservoir(length_slit_std ,_width[sm_col], _slit[sm_col], _pitch[sm_row], _length[sm_row], layers = l_smBeam)
                             
                 #             #Outer Labels
                             if sm_row == 0:
